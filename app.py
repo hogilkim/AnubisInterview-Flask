@@ -1,8 +1,10 @@
-from flask import Flask, request, Response, render_template
+
+from flask import Flask, request, Response, render_template, send_file
 from werkzeug.utils import secure_filename
 
 from db import db_init, db
 from models import Img
+from io import BytesIO
 
 app = Flask(__name__)
 # SQLAlchemy config. Read more: https://flask-sqlalchemy.palletsprojects.com/en/2.x/
@@ -23,11 +25,11 @@ def upload():
         return 'No pic uploaded!', 400
 
     filename = secure_filename(pic.filename)
-    mimetype = pic.mimetype
-    if not filename or not mimetype:
-        return 'Bad upload!', 400
+    # mimetype = pic.mimetype
+    # if not filename or not mimetype:
+    #     return 'Bad upload!', 400
 
-    img = Img(img=pic.read(), name=filename, mimetype=mimetype)
+    img = Img(img=pic.read(), name=filename) #, mimetype=mimetype
     db.session.add(img)
     db.session.commit()
 
@@ -40,4 +42,18 @@ def get_img(id):
     if not img:
         return 'Img Not Found!', 404
 
-    return Response(img.img, mimetype=img.mimetype)
+    return Response(img.img) #, mimetype=img.mimetype
+
+@app.route('/files', methods = ['GET'])
+def files():
+    items = Img().query.all()
+    return render_template('files.html', items = items)
+
+@app.route('/download/<int:id>', methods=['GET'])
+def download(id):
+    item = Img.query.filter_by(id=id).first()
+    return send_file(BytesIO(item.img), mimetype='image/png', as_attachment=True, attachment_filename=item.name)
+
+
+if __name__ == '__main__':
+    app.run(debug=True)
